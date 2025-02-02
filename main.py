@@ -39,11 +39,13 @@ def convert_to_timestamp(date_str: str) -> int:
     """Convert date string to a Unix timestamp."""
     if date_str:
         try:
+            print(f"Parsing date: {date_str}")  # Debugging line to see the date string
             # Assuming the date is in ISO 8601 format, e.g., "2025-02-05T00:00:00.000Z"
             dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.%fZ")
             return int(dt.timestamp())
-        except ValueError:
-            return None  # If there's a parsing error, return None
+        except ValueError as ve:
+            print(f"Error parsing date: {ve}")  # Log the error if the date is not parsed
+            return None  # Return None if parsing fails
     return None
 
 @app.get("/free-games")
