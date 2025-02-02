@@ -25,6 +25,7 @@ async def get_epic_free_games():
                 # Check if promotionalOffers is not empty
                 if promotional_offers:
                     offer_end_date = promotional_offers[0].get("promotionalOfferEndDate", None)
+                    
                     print(f"Found promotionalOfferEndDate: {offer_end_date}")  # Debugging line to check the offer end date
                     
                     free_games.append({
