@@ -17,22 +17,25 @@ async def get_epic_free_games():
         free_games = []
         for game in games:
             promotions = game.get("promotions", {})
-            promotional_offers = promotions.get("promotionalOffers", [])
             
-            # Check if promotionalOffers is not empty
-            if promotional_offers:
-                offer_end_date = promotional_offers[0].get("promotionalOfferEndDate", None)
-                print(f"Found promotionalOfferEndDate: {offer_end_date}")  # Debugging line to check the offer end date
+            # Check if promotions is a valid dictionary and contains "promotionalOffers"
+            if isinstance(promotions, dict):
+                promotional_offers = promotions.get("promotionalOffers", [])
                 
-                free_games.append({
-                    "title": game.get("title", "Unknown"),
-                    "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
-                    "cover": game.get("keyImages", [{}])[0].get("url", ""),  # Get the first image URL
-                    "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),  # Price info
-                    "offer_end_timestamp": (
-                        convert_to_timestamp(offer_end_date)
-                    )  # Offer end timestamp
-                })
+                # Check if promotionalOffers is not empty
+                if promotional_offers:
+                    offer_end_date = promotional_offers[0].get("promotionalOfferEndDate", None)
+                    print(f"Found promotionalOfferEndDate: {offer_end_date}")  # Debugging line to check the offer end date
+                    
+                    free_games.append({
+                        "title": game.get("title", "Unknown"),
+                        "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
+                        "cover": game.get("keyImages", [{}])[0].get("url", ""),  # Get the first image URL
+                        "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),  # Price info
+                        "offer_end_timestamp": (
+                            convert_to_timestamp(offer_end_date)
+                        )  # Offer end timestamp
+                    })
         
         return free_games
     
