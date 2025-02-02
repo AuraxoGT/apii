@@ -1,51 +1,36 @@
-import httpx
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+import requests
+from bs4 import BeautifulSoup
 
 app = FastAPI()
 
-# Fetch free games from Epic Games Store
+# Function to get free games from Epic Games
 async def get_epic_free_games():
-    url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions"
+    url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US"
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
-            response.raise_for_status()  # Raise an error for 4xx/5xx responses
-            data = response.json()
-    except httpx.HTTPStatusError as e:
-        raise Exception(f"HTTP error occurred: {e.response.status_code}")
-    except httpx.RequestError as e:
-        raise Exception(f"Request error occurred: {str(e)}")
-    
-    free_games = []
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        games = data.get("data", {}).get("Catalog", {}).get("searchStore", {}).get("elements", [])
+        free_games = [
+            {
+                "title": game.get("title", "Unknown"),
+                "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
+                "cover": game.get("keyImages", [{}])[0].get("url", "")  # Get the first image URL
+            }
+            for game in games if game.get("promotions") and game["promotions"].get("promotionalOffers")
+        ]
+        return free_games
+    except requests.RequestException as e:
+        print("Error fetching Epic Games:", e)
+        return []
 
-    for game in data.get("data", {}).get("Catalog", {}).get("searchStore", {}).get("elements", []):
-        game_title = game.get("title", "No title available")
-        game_url = game.get("url", "#")
-        game_description = game.get("description", "No description available")
 
-        # Safely access 'promotions' and 'promotionalOffers'
-        offer_end_date = "N/A"
-        if "promotions" in game and "promotionalOffers" in game["promotions"]:
-            if game["promotions"]["promotionalOffers"]:
-                offer_end_date = game["promotions"]["promotionalOffers"][0].get("promotionalOfferEndDate", "N/A")
+    except requests.RequestException as e:
+        print("Error fetching Steam Games:", e)
+        return []
 
-        free_games.append({
-            "title": game_title,
-            "url": game_url,
-            "description": game_description,
-            "offer_end_date": offer_end_date
-        })
-
-    return free_games
-
-# Endpoint to fetch free games
 @app.get("/free-games")
 async def free_games():
-    try:
-        epic_games = await get_epic_free_games()
-        return JSONResponse(content={"free_games": epic_games})
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-# Run the FastAPI application (via Uvicorn)
+    epic_games = await get_epic_free_games()
+    return {"epic": epic_games}
