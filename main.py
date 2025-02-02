@@ -4,20 +4,9 @@ from datetime import datetime
 
 app = FastAPI()
 
-# Function to get free games from Epic Games based on region
-async def get_epic_free_games(region="LT"):
-    locale_map = {
-        "US": "en-US",
-        "GB": "en-GB",
-        "DE": "de-DE",
-        "FR": "fr-FR",
-        "LT": "lt-LT",
-        # Add other regions as needed
-    }
-    
-    locale = locale_map.get(region.upper(), "en-US")  # Default to "en-US" if region not found
-    
-    url = f"https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale={locale}"
+# Function to get free games from Epic Games
+async def get_epic_free_games():
+    url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US"
     
     try:
         response = requests.get(url)
@@ -29,20 +18,33 @@ async def get_epic_free_games(region="LT"):
         for game in games:
             promotions = game.get("promotions", {})
             
+            # Log the promotions data for debugging
+            print(f"Game Promotions: {promotions}")
+            
+            # Check if promotions contain valid "promotionalOffers"
             if isinstance(promotions, dict) and "promotionalOffers" in promotions:
                 promotional_offers = promotions["promotionalOffers"]
                 
+                # Log the promotional offers data
+                print(f"Promotional Offers: {promotional_offers}")
+                
                 if promotional_offers:
                     offer_end_date = promotional_offers[0].get("promotionalOfferEndDate", None)
+                    print(f"Found promotionalOfferEndDate: {offer_end_date}")  # Debugging line to check the offer end date
                     
                     if offer_end_date:
+                        # Add the game to the list with the converted timestamp
                         free_games.append({
                             "title": game.get("title", "Unknown"),
                             "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
-                            "cover": game.get("keyImages", [{}])[0].get("url", ""),
-                            "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),
+                            "cover": game.get("keyImages", [{}])[0].get("url", ""),  # Get the first image URL
+                            "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),  # Price info
                             "offer_end_timestamp": convert_to_timestamp(offer_end_date)
                         })
+                else:
+                    print(f"No promotional offers available for game: {game.get('title', 'Unknown')}")
+            else:
+                print(f"No valid promotional offers found for game: {game.get('title', 'Unknown')}")
         
         return free_games
     
@@ -54,14 +56,17 @@ def convert_to_timestamp(date_str: str) -> int:
     """Convert Epic Games' custom date string to a Unix timestamp."""
     if date_str:
         try:
+            print(f"Attempting to parse date: {date_str}")  # Debugging line to see the date string before parsing
+            # Adjust the date format to match "2/6/2025 at 6:00 PM"
             dt = datetime.strptime(date_str, "%m/%d/%Y at %I:%M %p")
+            print(f"Parsed date: {dt}")  # Print parsed date
             return int(dt.timestamp())
         except ValueError as ve:
-            print(f"Error parsing date: {ve}")
-            return None
+            print(f"Error parsing date: {ve}")  # Log the error if the date is not parsed
+            return None  # Return None if parsing fails
     return None
 
 @app.get("/free-games")
-async def free_games(region: str = "US"):
-    epic_games = await get_epic_free_games(region)
+async def free_games():
+    epic_games = await get_epic_free_games()
     return {"epic": epic_games}
