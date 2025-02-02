@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 app = FastAPI()
 
@@ -12,14 +13,25 @@ async def get_epic_free_games():
         response.raise_for_status()
         data = response.json()
         games = data.get("data", {}).get("Catalog", {}).get("searchStore", {}).get("elements", [])
-        free_games = [
-            {
-                "title": game.get("title", "Unknown"),
-                "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
-                "cover": game.get("keyImages", [{}])[0].get("url", "")  # Get the first image URL
-            }
-            for game in games if game.get("promotions") and game["promotions"].get("promotionalOffers")
-        ]
+        
+        free_games = []
+        for game in games:
+            if game.get("promotions") and game["promotions"].get("promotionalOffers"):
+                # Extract the original price and end date of the offer
+                original_price = game.get("price", {}).get("totalPrice", {}).get("formattedPrice", "Free")
+                offer_end_date = game["promotions"]["promotionalOffers"][0]["promotionalOfferEndDate"]
+                
+                # Format the end date
+                end_date = datetime.utcfromtimestamp(offer_end_date / 1000).strftime('%Y-%m-%d %H:%M:%S')
+                
+                free_games.append({
+                    "title": game.get("title", "Unknown"),
+                    "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
+                    "cover": game.get("keyImages", [{}])[0].get("url", ""),
+                    "original_price": original_price,
+                    "free_until": end_date
+                })
+        
         return free_games
     except requests.RequestException as e:
         print("Error fetching Epic Games:", e)
@@ -33,6 +45,7 @@ async def get_steam_free_games():
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
+        
         games = []
         
         for result in soup.select(".search_result_row"):
@@ -47,7 +60,19 @@ async def get_steam_free_games():
                 cover_url = cover_tag["src"]  # Extract the cover image URL
                 
                 if "Free" in price:
-                    games.append({"title": title, "url": game_url, "cover": cover_url})
+                    # Steam doesn't always show the original price in search results, so we'll use a placeholder
+                    original_price = price.replace("Free", "").strip() or "Unknown"
+                    
+                    # Attempt to find the remaining time for the free offer (using a placeholder for now)
+                    free_until = "Unknown"  # Steam may not always show the exact date
+                    
+                    games.append({
+                        "title": title,
+                        "url": game_url,
+                        "cover": cover_url,
+                        "original_price": original_price,
+                        "free_until": free_until
+                    })
         
         return games
     except requests.RequestException as e:
