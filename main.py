@@ -1,61 +1,66 @@
 from fastapi import FastAPI
 import requests
 from datetime import datetime
+import pytz
+import logging
 
 app = FastAPI()
 
+# Set up logging to capture errors
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 # Function to get free games from Epic Games
 async def get_epic_free_games():
-    url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US"
-    
+    url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=lt-LT"  # Lithuanian locale
     try:
+        logger.debug("Sending request to Epic Games API...")
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
         games = data.get("data", {}).get("Catalog", {}).get("searchStore", {}).get("elements", [])
-        
+
         free_games = []
         for game in games:
             promotions = game.get("promotions", {})
             
-            # Check if promotions is a valid dictionary and contains "promotionalOffers"
-            if isinstance(promotions, dict):
-                promotional_offers = promotions.get("promotionalOffers", [])
-                
-                # Check if promotionalOffers is not empty
-                if promotional_offers:
-                    offer_end_date = promotional_offers[0].get("promotionalOfferEndDate", None)
-                    print(f"Found promotionalOfferEndDate: {offer_end_date}")  # Debugging line to check the offer end date
-                    
-                    free_games.append({
-                        "title": game.get("title", "Unknown"),
-                        "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
-                        "cover": game.get("keyImages", [{}])[0].get("url", ""),  # Get the first image URL
-                        "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),  # Price info
-                        "offer_end_timestamp": (
-                            convert_to_timestamp(offer_end_date)
-                        )  # Offer end timestamp
-                    })
-        
+            # Check if "promotions" and "promotionalOffers" are valid and not None
+            if promotions and "promotionalOffers" in promotions:
+                promo_end_date_str = promotions["promotionalOffers"][0].get("endDate")
+                timestamp = None
+
+                # Check if we have a valid promotional end date string
+                if promo_end_date_str:
+                    try:
+                        logger.debug(f"Parsing promotional offer end date for {game['title']}: {promo_end_date_str}")
+                        # Convert "2025-02-06T18:00:00.000Z" to a datetime object
+                        promo_end_date = datetime.strptime(promo_end_date_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+                        # Make sure to localize it to the Lithuanian timezone (EET or EEST)
+                        lithuanian_tz = pytz.timezone('Europe/Vilnius')
+                        localized_promo_end_date = lithuanian_tz.localize(promo_end_date)
+                        timestamp = int(localized_promo_end_date.timestamp())  # Convert to Unix timestamp
+                    except ValueError as e:
+                        logger.error(f"Error parsing date for {game['title']}: {e}")
+                        timestamp = None  # If parsing fails, leave the timestamp as None
+
+                # Add the game details including the timestamp
+                free_games.append({
+                    "title": game.get("title", "Unknown"),
+                    "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
+                    "cover": game.get("keyImages", [{}])[0].get("url", ""),
+                    "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),
+                    "offer_end_date_timestamp": timestamp  # Timestamp of the offer end date
+                })
+
         return free_games
-    
+
     except requests.RequestException as e:
-        print(f"Error fetching Epic Games: {e}")
+        logger.error(f"Error fetching Epic Games: {e}")
         return []
 
-def convert_to_timestamp(date_str: str) -> int:
-    """Convert Epic Games' custom date string to a Unix timestamp."""
-    if date_str:
-        try:
-            print(f"Attempting to parse date: {date_str}")  # Debugging line to see the date string before parsing
-            # Adjust the date format to match "2/6/2025 at 6:00 PM"
-            dt = datetime.strptime(date_str, "%m/%d/%Y at %I:%M %p")
-            print(f"Parsed date: {dt}")  # Print parsed date
-            return int(dt.timestamp())
-        except ValueError as ve:
-            print(f"Error parsing date: {ve}")  # Log the error if the date is not parsed
-            return None  # Return None if parsing fails
-    return None
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return []
 
 @app.get("/free-games")
 async def free_games():
