@@ -18,7 +18,10 @@ async def get_epic_free_games():
                 "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
                 "cover": game.get("keyImages", [{}])[0].get("url", ""),  # Get the first image URL
                 "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),  # Price info
-                "offer_end_date": game.get("promotions", {}).get("promotionalOffers", [{}])[0].get("promotionalOfferEndDate", "N/A")  # End date of the offer
+                "offer_end_date": (
+                    game.get("promotions", {}).get("promotionalOffers", [{}])[0].get("promotionalOfferEndDate", "N/A")
+                    if game.get("promotions") and game.get("promotions").get("promotionalOffers") else "N/A"
+                )  # End date of the offer (only if promotion exists)
             }
             for game in games if game.get("promotions") and game["promotions"].get("promotionalOffers")
         ]
@@ -28,7 +31,6 @@ async def get_epic_free_games():
     except requests.RequestException as e:
         print("Error fetching Epic Games:", e)
         return []
-
 
 @app.get("/free-games")
 async def free_games():
