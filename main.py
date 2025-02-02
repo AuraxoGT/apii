@@ -21,29 +21,30 @@ async def get_epic_free_games():
             # Log the promotions data for debugging
             print(f"Game Promotions: {promotions}")
             
-            # Check if promotions is a valid dictionary and contains "promotionalOffers"
-            if isinstance(promotions, dict):
-                promotional_offers = promotions.get("promotionalOffers", [])
+            # Check if promotions contain valid "promotionalOffers"
+            if isinstance(promotions, dict) and "promotionalOffers" in promotions:
+                promotional_offers = promotions["promotionalOffers"]
                 
                 # Log the promotional offers data
                 print(f"Promotional Offers: {promotional_offers}")
                 
-                # Check if there are promotional offers
                 if promotional_offers:
                     offer_end_date = promotional_offers[0].get("promotionalOfferEndDate", None)
                     print(f"Found promotionalOfferEndDate: {offer_end_date}")  # Debugging line to check the offer end date
                     
-                    free_games.append({
-                        "title": game.get("title", "Unknown"),
-                        "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
-                        "cover": game.get("keyImages", [{}])[0].get("url", ""),  # Get the first image URL
-                        "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),  # Price info
-                        "offer_end_timestamp": (
-                            convert_to_timestamp(offer_end_date) if offer_end_date else None
-                        )  # Offer end timestamp
-                    })
+                    if offer_end_date:
+                        # Add the game to the list with the converted timestamp
+                        free_games.append({
+                            "title": game.get("title", "Unknown"),
+                            "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
+                            "cover": game.get("keyImages", [{}])[0].get("url", ""),  # Get the first image URL
+                            "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),  # Price info
+                            "offer_end_timestamp": convert_to_timestamp(offer_end_date)
+                        })
                 else:
-                    print(f"No promotional offers for game: {game.get('title', 'Unknown')}")
+                    print(f"No promotional offers available for game: {game.get('title', 'Unknown')}")
+            else:
+                print(f"No valid promotional offers found for game: {game.get('title', 'Unknown')}")
         
         return free_games
     
