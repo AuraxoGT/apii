@@ -27,14 +27,18 @@ async def get_epic_free_games():
                 if promotional_offers:
                     # Get the offer end date from the first promotional offer
                     offer_end_date = promotional_offers[0].get("promotionalOfferEndDate", None)
-                    
+
+                    # Debugging: log the offer end date to see what we're working with
+                    print(f"Offer End Date: {offer_end_date}")
+
                     # Convert the end date to a timestamp if it exists
                     if offer_end_date:
                         try:
                             # Parsing date string: 02/06/2025 6:00 PM
                             date_obj = datetime.strptime(offer_end_date, "%m/%d/%Y %I:%M %p")
                             offer_end_timestamp = date_obj.timestamp()
-                        except ValueError:
+                        except ValueError as e:
+                            print(f"Error parsing date: {offer_end_date}. Error: {e}")
                             offer_end_timestamp = None
                     else:
                         offer_end_timestamp = None
