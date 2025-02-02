@@ -19,10 +19,7 @@ async def get_epic_free_games():
             promotions = game.get("promotions", {})
             if "promotionalOffers" in promotions:
                 offer_end_date = promotions["promotionalOffers"][0].get("promotionalOfferEndDate", None)
-                if offer_end_date:
-                    print(f"Found promotionalOfferEndDate: {offer_end_date}")  # Debugging line to check the offer end date
-                else:
-                    print("No promotionalOfferEndDate found.")  # If the offer end date is missing
+                print(f"Found promotionalOfferEndDate: {offer_end_date}")  # Debugging line to check the offer end date
                 
                 free_games.append({
                     "title": game.get("title", "Unknown"),
@@ -37,16 +34,17 @@ async def get_epic_free_games():
         return free_games
     
     except requests.RequestException as e:
-        print("Error fetching Epic Games:", e)
+        print(f"Error fetching Epic Games: {e}")
         return []
 
 def convert_to_timestamp(date_str: str) -> int:
     """Convert Epic Games' custom date string to a Unix timestamp."""
     if date_str:
         try:
-            print(f"Parsing date: {date_str}")  # Debugging line to see the date string
+            print(f"Attempting to parse date: {date_str}")  # Debugging line to see the date string before parsing
             # Adjust the date format to match "2/6/2025 at 6:00 PM"
             dt = datetime.strptime(date_str, "%m/%d/%Y at %I:%M %p")
+            print(f"Parsed date: {dt}")  # Print parsed date
             return int(dt.timestamp())
         except ValueError as ve:
             print(f"Error parsing date: {ve}")  # Log the error if the date is not parsed
