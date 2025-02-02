@@ -11,15 +11,20 @@ async def get_epic_free_games():
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
+
+        # Safely navigate through the response structure
         games = data.get("data", {}).get("Catalog", {}).get("searchStore", {}).get("elements", [])
         
         free_games = []
         for game in games:
-            # Get the promotional offers
-            promotions = game.get("promotions", {}).get("promotionalOffers", [])
-            if promotions:
-                # Get the offer end date from the promotion
-                offer_end_date = promotions[0].get("promotionalOfferEndDate", None)
+            # Safely handle the promotions and promotionalOffers
+            promotions = game.get("promotions", {})
+            promotional_offers = promotions.get("promotionalOffers", [])
+
+            if promotional_offers:
+                # Get the offer end date from the first promotional offer
+                offer_end_date = promotional_offers[0].get("promotionalOfferEndDate", None)
+                
                 # Convert the end date to a timestamp
                 if offer_end_date:
                     try:
