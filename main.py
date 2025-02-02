@@ -29,7 +29,7 @@ async def get_epic_free_games():
                 
                 if promotional_offers:
                     # Get the offer end date from the first promotional offer (using endDate now)
-                    offer_end_date = promotional_offers[0].get("endDate", None)
+                    offer_end_date = promotional_offers[0].get("endDate")
                     
                     # Log the offer end date for debugging
                     print(f"Offer End Date for {game.get('title', 'Unknown')}: {offer_end_date}")
