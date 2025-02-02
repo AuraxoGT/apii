@@ -15,7 +15,8 @@ async def get_epic_free_games():
         free_games = [
             {
                 "title": game.get("title", "Unknown"),
-                "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}"
+                "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
+                "cover": game.get("keyImages", [{}])[0].get("url", "")  # Get the first image URL
             }
             for game in games if game.get("promotions") and game["promotions"].get("promotionalOffers")
         ]
@@ -37,13 +38,16 @@ async def get_steam_free_games():
         for result in soup.select(".search_result_row"):
             title_tag = result.select_one(".title")
             price_tag = result.select_one(".search_price")
-            if title_tag and price_tag:
+            cover_tag = result.select_one(".search_result_row img")  # Get the cover image
+            
+            if title_tag and price_tag and cover_tag:
                 title = title_tag.text.strip()
                 game_url = result.get("href", "")
                 price = price_tag.text.strip()
+                cover_url = cover_tag["src"]  # Extract the cover image URL
                 
                 if "Free" in price:
-                    games.append({"title": title, "url": game_url})
+                    games.append({"title": title, "url": game_url, "cover": cover_url})
         
         return games
     except requests.RequestException as e:
