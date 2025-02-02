@@ -25,10 +25,11 @@ async def get_epic_free_games():
                 # Get the offer end date from the first promotional offer
                 offer_end_date = promotional_offers[0].get("promotionalOfferEndDate", None)
                 
-                # Convert the end date to a timestamp
+                # Convert the end date to a timestamp if it exists
                 if offer_end_date:
                     try:
-                        date_obj = datetime.strptime(offer_end_date, "%m/%d/%Y %I:%M %p")  # Format: 02/06/2025 6:00 PM
+                        # Parsing date string: 02/06/2025 6:00 PM
+                        date_obj = datetime.strptime(offer_end_date, "%m/%d/%Y %I:%M %p")
                         offer_end_timestamp = date_obj.timestamp()
                     except ValueError:
                         offer_end_timestamp = None
@@ -48,7 +49,7 @@ async def get_epic_free_games():
         return free_games
     
     except requests.RequestException as e:
-        print("Error fetching Epic Games:", e)
+        print(f"Error fetching Epic Games: {e}")
         return []
 
 @app.get("/free-games")
