@@ -12,6 +12,9 @@ async def get_epic_free_games():
         response.raise_for_status()
         data = response.json()
 
+        # Log the entire API response to inspect the structure
+        print("API Response:", data)
+
         # Safely navigate through the response structure
         games = data.get("data", {}).get("Catalog", {}).get("searchStore", {}).get("elements", [])
         
@@ -27,6 +30,9 @@ async def get_epic_free_games():
                 if promotional_offers:
                     # Get the offer end date from the first promotional offer (using endDate now)
                     offer_end_date = promotional_offers[0].get("endDate", None)
+                    
+                    # Log the offer end date for debugging
+                    print(f"Offer End Date for {game.get('title', 'Unknown')}: {offer_end_date}")
 
                     # Convert the end date to a timestamp if it exists
                     if offer_end_date:
