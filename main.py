@@ -1,27 +1,35 @@
+import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-import requests
 
 app = FastAPI()
 
-# Function to fetch free Epic Games
+# Fetch free games from Epic Games Store
 async def get_epic_free_games():
     url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions"
-    response = requests.get(url)
-    data = response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()  # Raise an error for 4xx/5xx responses
+            data = response.json()
+    except httpx.HTTPStatusError as e:
+        raise Exception(f"HTTP error occurred: {e.response.status_code}")
+    except httpx.RequestError as e:
+        raise Exception(f"Request error occurred: {str(e)}")
+    
     free_games = []
 
-    for game in data["data"]["Catalog"]["searchStore"]["elements"]:
-        game_title = game["title"]
-        game_url = game["url"]
+    for game in data.get("data", {}).get("Catalog", {}).get("searchStore", {}).get("elements", []):
+        game_title = game.get("title", "No title available")
+        game_url = game.get("url", "#")
         game_description = game.get("description", "No description available")
 
-        # Check if promotionalOffers and promotionalOfferEndDate exist
-        offer_end_date = None
+        # Safely access 'promotions' and 'promotionalOffers'
+        offer_end_date = "N/A"
         if "promotions" in game and "promotionalOffers" in game["promotions"]:
             if game["promotions"]["promotionalOffers"]:
                 offer_end_date = game["promotions"]["promotionalOffers"][0].get("promotionalOfferEndDate", "N/A")
-        
+
         free_games.append({
             "title": game_title,
             "url": game_url,
@@ -31,17 +39,13 @@ async def get_epic_free_games():
 
     return free_games
 
-# Endpoint to get the free Epic Games
+# Endpoint to fetch free games
 @app.get("/free-games")
 async def free_games():
     try:
         epic_games = await get_epic_free_games()
-        if not epic_games:
-            return JSONResponse(status_code=404, content={"message": "No free games found"})
-        return JSONResponse(status_code=200, content={"free_games": epic_games})
+        return JSONResponse(content={"free_games": epic_games})
     except Exception as e:
-        return JSONResponse(status_code=500, content={"message": f"An error occurred: {str(e)}"})
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Run the FastAPI application (via Uvicorn)
