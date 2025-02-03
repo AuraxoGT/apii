@@ -4,55 +4,48 @@ from datetime import datetime
 
 app = FastAPI()
 
-# Function to get free games from Epic Games
 async def get_epic_free_games():
     url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=lt-LT"
+    
     try:
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
 
-        # Log the entire API response to inspect the structure
-        print("API Response:", data)
+        print("API Response:", data)  # Debugging
 
-        # Safely navigate through the response structure
         games = data.get("data", {}).get("Catalog", {}).get("searchStore", {}).get("elements", [])
-        
         free_games = []
+
         for game in games:
-            # Safely handle the promotions and promotionalOffers
-            promotions = game.get("promotions", {})  # Ensure promotions is a dictionary
+            promotions = game.get("promotions", {})
             
-            # Check if "promotions" exists and is a dictionary
             if isinstance(promotions, dict):
                 promotional_offers = promotions.get("promotionalOffers", [])
-                
-                if promotional_offers:
-                    # Get the offer end date from the first promotional offer (using endDate now)
-                    offer_end_date = promotional_offers[0].get("endDate")
-                    
-                    # Log the offer end date for debugging
-                    print(f"Offer End Date for {game.get('title', 'Unknown')}: {offer_end_date}")
 
-                    # Convert the end date to a timestamp if it exists
+                if promotional_offers:
+                    offer_end_date = promotional_offers[0]["promotionalOffers"][0].get("endDate")
+
+                    print(f"Offer End Date for {game.get('title', 'Unknown')}: {offer_end_date}")  # Debugging
+
+                    # Convert to timestamp
                     if offer_end_date:
                         try:
-                            # Parsing date string: 02/06/2025 6:00 PM
-                            date_obj = datetime.strptime(offer_end_date, "%m/%d/%Y %I:%M %p")
-                            offer_end_timestamp = date_obj.timestamp()
+                            date_obj = datetime.fromisoformat(offer_end_date.replace("Z", "+00:00"))  # Convert UTC
+                            offer_end_timestamp = int(date_obj.timestamp())  # Convert to integer timestamp
                         except ValueError:
                             offer_end_timestamp = None
                     else:
                         offer_end_timestamp = None
 
-                    # Append the game details with the timestamp
+                    # Append game details
                     free_games.append({
                         "title": game.get("title", "Unknown"),
                         "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
                         "cover": game.get("keyImages", [{}])[0].get("url", ""),
                         "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),
                         "offer_end_date": offer_end_date,
-                        "offer_end_date_timestamp": offer_end_timestamp  # Add the timestamp field
+                        "offer_end_date_timestamp": offer_end_timestamp
                     })
 
         return free_games
