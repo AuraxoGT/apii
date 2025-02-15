@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-import requests
+import httpx
 from datetime import datetime
 
 app = FastAPI()
@@ -8,9 +8,10 @@ async def get_epic_free_games():
     url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=lt-LT"
     
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
 
         print("API Response:", data)  # Debugging
 
@@ -21,9 +22,11 @@ async def get_epic_free_games():
             promotions = game.get("promotions", {})
             
             if isinstance(promotions, dict):
+                # Check if the game has a valid promotional offer (must be free)
                 promotional_offers = promotions.get("promotionalOffers", [])
 
                 if promotional_offers:
+                    # Check if the game is free
                     offer_end_date = promotional_offers[0]["promotionalOffers"][0].get("endDate")
 
                     print(f"Offer End Date for {game.get('title', 'Unknown')}: {offer_end_date}")  # Debugging
@@ -38,19 +41,21 @@ async def get_epic_free_games():
                     else:
                         offer_end_timestamp = None
 
-                    # Append game details
-                    free_games.append({
-                        "title": game.get("title", "Unknown"),
-                        "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
-                        "cover": game.get("keyImages", [{}])[0].get("url", ""),
-                        "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),
-                        "offer_end_date": offer_end_date,
-                        "offer_end_date_timestamp": offer_end_timestamp
-                    })
+                    # Check if the game is actually free
+                    if game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "").lower() == "free":
+                        # Append free game details
+                        free_games.append({
+                            "title": game.get("title", "Unknown"),
+                            "url": f"https://store.epicgames.com/p/{game.get('productSlug', '')}",
+                            "cover": game.get("keyImages", [{}])[0].get("url", ""),
+                            "price": game.get("price", {}).get("totalPrice", {}).get("fmtPrice", "Free"),
+                            "offer_end_date": offer_end_date,
+                            "offer_end_date_timestamp": offer_end_timestamp
+                        })
 
         return free_games
     
-    except requests.RequestException as e:
+    except httpx.RequestError as e:
         print(f"Error fetching Epic Games: {e}")
         return []
 
